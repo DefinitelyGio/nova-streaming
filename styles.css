@@ -18,3 +18,6 @@
 @media(max-width:410px){.header-inner{padding-left:16px;padding-right:16px}.search-box{width:142px}.hero-title{font-size:65px}.hero-kicker .kicker-number{margin-left:2px}.hero-actions{gap:7px}.btn{padding:0 12px}.media-card.poster-card{width:43vw}.collection-name{font-size:23px}}
 @media(prefers-reduced-motion:reduce){html,.rail-scroller{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
 .card-click{position:absolute;inset:0;overflow:hidden;border-radius:inherit}.card-click img{width:100%;height:100%;object-fit:cover}.card-click:focus-visible{outline-offset:-4px;z-index:2}.card-status{pointer-events:none}.poster-card .card-art img{object-position:center center}
+
+/* Published catalog additions and season selector */
+.season-select-label{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:14px 0;color:#cac8d4;font-size:12px}.season-select{appearance:auto;border:1px solid #4d4b59;border-radius:5px;background:#252630;color:#f4f2f1;padding:10px 14px;font:inherit;min-width:165px}.episode-play{background:#8f80ea;color:#111118;border:0;border-radius:4px;padding:7px 10px;margin-left:10px;font-size:11px;font-weight:700}.episode-play:hover{background:#b6aafc}.site-footer a{color:#c6bcff;text-decoration:underline;text-underline-offset:3px}.site-footer a:hover{color:white}

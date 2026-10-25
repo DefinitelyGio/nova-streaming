@@ -1,6 +1,9 @@
 (() => {
   'use strict';
-  const items = Array.isArray(window.NOVA_CATALOG) ? window.NOVA_CATALOG : [];
+  // Entries published by NOVA Library Studio are combined with the original demo catalog.
+  const baseItems = Array.isArray(window.NOVA_CATALOG) ? window.NOVA_CATALOG : [];
+  const importedItems = Array.isArray(window.NOVA_IMPORTS) ? window.NOVA_IMPORTS : [];
+  const items = [...baseItems, ...importedItems.filter(i => i && i.id && !baseItems.some(b => b.id === i.id))];
   const byId = new Map(items.map(item => [item.id, item]));
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -20,8 +23,16 @@
   let activeOverlay=null;
   let lastFocus=null;
   let toastTimer;
-  const poster = item => `assets/poster-${item.art}.svg`;
-  const backdrop = item => heroArt[item.id] || poster(item);
+  const safeArtUrl = value => {
+    if (typeof value !== 'string') return null;
+    try {
+      const u = new URL(value, location.href);
+      if (u.protocol !== 'https:' && u.origin !== location.origin && u.protocol !== 'file:') return null;
+      return u.href;
+    } catch { return null; }
+  };
+  const poster = item => safeArtUrl(item.posterUrl) || `assets/poster-${/^[a-z-]+$/.test(item.art || '') ? item.art : 'signal'}.svg`;
+  const backdrop = item => safeArtUrl(item.backdropUrl) || heroArt[item.id] || poster(item);
   const kind = item => item.type==='series' ? 'Series' : 'Movie';
   const meta = item => `${item.year}<span class="bullet">·</span>${html(kind(item))}<span class="bullet">·</span>${html(item.genres?.[0]||'Drama')}`;
   const iconPlay = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
@@ -88,12 +99,13 @@
     const picks=['last-signal','blue-hour','orbit-nine','paper-kings','neon-district','good-company','echo-valley'].map(id=>byId.get(id)).filter(Boolean);
     const collections=['Sci-Fi','Animation','Adventure','Mystery'].filter(g=>items.some(i=>i.genres.includes(g)));
     const collectionSection=`<section class="rail" aria-labelledby="collections-heading"><div class="rail-head"><div><h2 id="collections-heading">Browse by mood</h2><p class="rail-subtitle">A different direction for movie night</p></div></div><div class="collections-grid">${collections.map(g=>`<button type="button" class="collection-card" data-collection="${html(g)}"><span class="collection-overline">NOVA COLLECTION</span><span class="collection-name">${html(g)}</span><span class="collection-action">Explore titles →</span></button>`).join('')}</div></section>`;
-    return rail('rail-picks','NOVA Picks','Handpicked from the demo collection',picks,'wide')+
+    return rail('rail-imported','Library additions','Catalog entries published from Library Studio',importedItems.filter(i=>byId.has(i.id)).slice().reverse(),'wide')+
+      rail('rail-picks','NOVA Picks','Handpicked from the demo collection',picks,'wide')+
       rail('rail-movies','Movies to explore','Something for every kind of night',movies)+
       rail('rail-series','Find your next series','One episode becomes three',series,'wide')+
       collectionSection+
       rail('rail-more','More to explore','A few you might have missed',[...items].reverse())+
-      '<p class="library-note">NOVA V2 is a design demo. Titles are fictional and do not represent real streaming availability.</p>';
+      '<p class="library-note">Demo entries are fictional. Other entries are catalog metadata and do not imply streaming availability.</p>';
   }
   function render(){
     savedCount();
@@ -118,26 +130,37 @@
     render();window.scrollTo({top:0,behavior:'auto'});
   }
   function renderDetails(id){
-    const item=byId.get(id);if(!item)return;
+    const item=byId.get(id); if(!item)return;
     const hasVideo=Boolean(item.video);
-    $('#details-body').innerHTML=`<div class="details-cover" style="background-image:linear-gradient(0deg, #181920, #18192000 70%),url('${backdrop(item)}')"></div>
+    const seasons=Array.isArray(item.seasons)?item.seasons:[];
+    $('#details-body').innerHTML=`<div class="details-cover" id="details-cover"></div>
     <div class="details-main"><h2>${html(item.title)}</h2>
-    <div class="details-meta"><span>${html(item.year)}</span><span>·</span><span class="age-chip">${html(item.age)}</span><span>·</span><span>${html(item.length)}</span><span>·</span><span>${kind(item)}</span></div>
-    <p class="details-description">${html(item.description)}</p>
+    <div class="details-meta"><span>${html(item.year)}</span><span>·</span><span class="age-chip">${html(item.age||'NR')}</span><span>·</span><span>${html(item.length||'')}</span><span>·</span><span>${kind(item)}</span></div>
+    <p class="details-description">${html(item.description||'')}</p>
     <div class="details-buttons">${hasVideo?`<button class="btn btn-primary" type="button" data-play="${html(item.id)}">${iconPlay} ${item.video.demo?'Play sample':'Play'}</button>`:''}<button class="btn btn-secondary" type="button" data-save="${html(item.id)}">${saved.has(id)?'✓ In My List':'+ Add to My List'}</button></div>
-    ${!hasVideo?'<p class="library-note">No playback is attached to this fictional demo title.</p>':''}
+    ${!hasVideo&&item.type==='movie'?'<p class="library-note">No playable video has been attached to this listing.</p>':''}
     <div class="details-label">GENRES</div><div class="detail-genres">${html((item.genres||[]).join(' · '))}</div>
-    ${item.seasons?`<div class="details-label">EPISODES</div>${item.seasons.map(season=>`<div class="episodes"><strong>${html(season.label)}</strong>${season.episodes.map((ep,i)=>`<div class="episode"><span>${String(i+1).padStart(2,'0')} &nbsp; ${html(ep.title)}</span><span>${html(ep.length)}</span></div>`).join('')}</div>`).join('')}`:''}</div>`;
+    ${seasons.length?`<div class="details-label">EPISODES</div><label class="season-select-label">Choose a season <select class="season-select" id="season-select" aria-label="Select season">${seasons.map((season,idx)=>`<option value="${idx}">${html(season.label||'Season '+(idx+1))}</option>`).join('')}</select></label><div id="episodes-list"></div>`:''}</div>`;
+    $('#details-cover').style.backgroundImage=`linear-gradient(0deg, #181920, #18192000 70%),url("${backdrop(item).replaceAll('"','%22')}")`;
+    if(seasons.length){
+      const select=$('#season-select');
+      const showEpisodes=()=>{
+        const si=Number(select.value),eps=seasons[si]?.episodes||[];
+        $('#episodes-list').innerHTML=`<div class="episodes">${eps.length?eps.map((ep,ei)=>`<div class="episode"><span>${String(ei+1).padStart(2,'0')} &nbsp; ${html(ep.title||'Episode '+(ei+1))}</span><span>${html(ep.length||'')} ${ep.video?`<button class="episode-play" type="button" data-episode-id="${html(id)}" data-season="${si}" data-episode="${ei}">▶ Play</button>`:''}</span></div>`).join(''):'<p class="library-note">No episodes listed for this season.</p>'}</div>`;
+      };
+      select.addEventListener('change',showEpisodes);showEpisodes();
+    }
   }
   function openDetails(id){if(!byId.has(id))return;renderDetails(id);openOverlay('details');}
   function getDrivePreview(url){
     if(!url||typeof url!=='string')return null;
     try {const p=new URL(url);if(!['drive.google.com','docs.google.com'].includes(p.hostname))return null;const id=p.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1]||(p.pathname==='/open'?p.searchParams.get('id'):null);if(id&&/^[a-zA-Z0-9_-]{10,}$/.test(id))return `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview`;}catch{}return null;
   }
-  function play(id){
+  function play(id, seasonIndex=null, episodeIndex=null){
     const item=byId.get(id);if(!item)return;
-    $('#player-title').textContent=item.title;
-    const v=item.video;const frame=$('#player-frame');
+    const episode = seasonIndex===null ? null : item.seasons?.[seasonIndex]?.episodes?.[episodeIndex];
+    $('#player-title').textContent=episode ? `${item.title} — ${episode.title}` : item.title;
+    const v=episode ? episode.video : item.video;const frame=$('#player-frame');
     if(v?.type==='mp4'&&v.url&&(/^(https?:\/\/|media\/)/i.test(v.url))){
       const video=document.createElement('video');video.controls=true;video.playsInline=true;video.autoplay=true;video.src=v.url;video.setAttribute('aria-label',`${item.title} video`);frame.replaceChildren(video);
       $('#player-caption').textContent=v.demo?'Original short test animation, not a complete feature film.':'Only stream content you have permission to share.';
@@ -145,7 +168,7 @@
       const iframe=document.createElement('iframe');iframe.src=getDrivePreview(v.url);iframe.title=`${item.title} — Google Drive preview`;iframe.allow='autoplay; fullscreen';iframe.allowFullscreen=true;frame.replaceChildren(iframe);
       $('#player-caption').textContent='Viewers need individual file access. Playback may be limited by Drive or your school.';
     }else{
-      frame.innerHTML='<div class="player-placeholder"><h3>No video available</h3><p>This fictional listing has no playable video. Add a permitted MP4 or Drive preview in catalog.js.</p></div>';
+      frame.innerHTML='<div class="player-placeholder"><h3>No video available</h3><p>No playable video source is attached to this catalog entry.</p></div>';
       $('#player-caption').textContent='';
     }
     if(activeOverlay)closeOverlay(activeOverlay,false);
@@ -163,6 +186,7 @@
     const genreButton=target.closest('[data-genre]');if(genreButton){genre=genreButton.dataset.genre;render();return;}
     const close=target.closest('[data-close]');if(close){closeOverlay(close.dataset.close);return;}
     const save=target.closest('[data-save]');if(save){setSaved(save.dataset.save);return;}
+    const episodePlay=target.closest('[data-episode-id]');if(episodePlay){play(episodePlay.dataset.episodeId,Number(episodePlay.dataset.season),Number(episodePlay.dataset.episode));return;}
     const playBtn=target.closest('[data-play]');if(playBtn){play(playBtn.dataset.play);return;}
     const detail=target.closest('[data-detail]');if(detail){openDetails(detail.dataset.detail);return;}
   });

@@ -1,67 +1,62 @@
-# NOVA V2 — cinematic library demo
+# NOVA V2.1 — Library Studio
 
-NOVA is a static movie/TV discovery demo built for GitHub Pages. It uses original fictional entries and an original sample MP4; it does **not** include commercial movies or TV episodes. The site's code is plain HTML, CSS, and JavaScript (no backend, account, or build system).
+Adds a catalog-management UI to the existing NOVA V2 static GitHub Pages site. The original cinematic homepage, search, saved list, and sample video remain intact.
 
-## What's new in V2
+## What you can do
 
-- Three manually selected featured stories with original landscape artwork and working previous/next controls (no automatic carousel motion).
-- The first shelf is visible near the bottom of the initial desktop screen.
-- Swipeable, keyboard-accessible horizontal shelves for picks, movies, and series; editorial genre collection tiles.
-- More restrained branding, colors, borders, motion, and typography. The old “FRAME COLLECTION” artwork labels were removed.
-- Better details panels, a saved My List, an episode display for fictional series, and a sample MP4 player.
-- Responsive layout for mobile; respects `prefers-reduced-motion`.
+- Open `studio.html` (Library Studio) to create and edit movie metadata, ages, descriptions, genres, and art.
+- Create TV series and add episodes organized by season, each with an optional independently playable video link.
+- Paste an authorized Google Drive **file** URL (not a folder link), or a hosted MP4 HTTPS URL; `media/*.mp4` relative paths also work if the actual files are hosted.
+- Import an MP4 filename list, select local MP4s to read their names, or play one locally as a temporary preview.
+- Export `imports.js`, which you then upload to GitHub alongside the NOVA code. Imported listings become visible in **Library additions**, Movies or TV Series, and search. Play buttons appear only when a source is supplied.
+- Import earlier exported `imports.js` files or JSON to resume catalog editing on another browser/device.
 
-## Publish an update to your existing GitHub Pages site
+## Install to current GitHub Pages site
 
-This is an **update** for `DefinitelyGio/nova-streaming`, not a new repository.
+Keep the existing `assets/` folder and `media/` folder untouched. To update `https://github.com/DefinitelyGio/nova-streaming`:
 
-1. Download and extract `NOVA-V2-GitHub-Pages.zip`.
-2. Back up or commit a copy of your existing repository first, especially if you've edited `catalog.js` since the V1 release.
-3. Replace the site files at the **root** of the `nova-streaming` repository with the contents of the extracted folder. Merge the `assets/` and `media/` folders rather than placing one NOVA folder inside another.
-4. Commit the update to the `main` branch; your existing `Settings → Pages → Deploy from a branch → main → / (root)` configuration remains valid.
-5. After GitHub Pages completes deployment, open `https://definitelygio.github.io/nova-streaming/`. If the older version is cached, refresh the page.
+1. Download and extract `NOVA-V2.1-Library-Studio-Update.zip`.
+2. In the repository's root (not a new subfolder), replace/update these 5 files:
+   - `index.html`
+   - `styles.css`
+   - `app.js`
+   - `imports.js` (new file)
+   - `studio.html` (new file)
+3. Commit the change to `main`. Existing `Settings > Pages > main / (root)` remains unchanged.
+4. Visit `https://definitelygio.github.io/nova-streaming/studio.html` or use the **Library Studio** link in the footer.
+5. Add one authorized test title and click **Save title locally**, then **Export imports.js**.
+6. Replace only the repo's root `imports.js` with the downloaded file, and commit. The new title will appear to all visitors after deployment.
 
-Tip: GitHub Desktop works well for updating a repository containing many assets. Copy files into the checked-out local repository and commit/push your changes. Don't overwrite `.git`.
+When uploading, GitHub may not preserve folders when dragged incorrectly. For this patch, there are no new art folders to upload. Do not overwrite an existing imports.js containing your real custom titles with the blank starter copy; back it up first.
 
-## Local development
+## What this doesn't do
 
-Open `index.html` in a browser or serve this folder with `python -m http.server 8000`. For online deployment, keep the directory layout exactly as is:
+This site runs on **GitHub Pages**, which is static hosting. There is no server, database, signed-in admin role, or Google Drive OAuth uploader.
 
-```text
-index.html                 Homepage, navigation and modals
-styles.css                 Responsive design
-app.js                     Browsing, hero, search, My List and player logic
-catalog.js                 Editable demo data
-assets/poster-*.svg        Original fictional cover art
-assets/hero-*.svg          Original featured art
-assets/favicon.svg         App icon
-media/nova-demo.mp4        Short original sample video
-.nojekyll                   GitHub Pages static file handling
+- Local MP4 file selection **does not upload a video** or make it available to other students. It can only read filenames and preview in the local browser.
+- Saving in Library Studio updates browser storage only. Public changes occur only after the repo owner exports and commits `imports.js`.
+- Although `studio.html` is publicly accessible on GitHub Pages, **visitors cannot modify the site's shared catalog**; they could only make their own local drafts. Do not call this a secure admin login. A truly private dashboard requires a backend and authentication.
+- Google Drive preview works only if viewers have the required file access. Drive can impose streaming limits, and MKVs may not preview reliably.
+- Directly hosting movie-length MP4s in the GitHub Pages repository is generally unsuitable due to file and bandwidth limits.
+- A public GitHub Pages site isn't a school-only private site.
+
+## Content rights
+
+Only add playable links for films, shows, school recordings, or other content you own or have permission to distribute. A file existing in your personal/school Drive doesn't grant public redistribution permission. For commercial titles without distribution rights, you can provide informational catalog listings and official viewing links separately.
+
+## Existing catalog and layout
+
+`catalog.js` still holds the 12 fictional demonstration entries. `imports.js` adds records alongside them without changing any default entries or IDs. The saved-list key `nova-saved-v1` is preserved.
+
+## Structure
+
 ```
-
-## Managing permitted content
-
-Edit `catalog.js` to add your **own**, **public-domain**, properly licensed, or otherwise authorized videos. You may also create metadata-only entries that point visitors to official streaming services rather than host the movies yourself.
-
-A playable entry can have:
-
-```js
-video: {type: 'mp4', url: 'media/my-student-film.mp4'}
+index.html          public browsing home
+styles.css          existing V2 layout with episode controls
+catalog.js          fictional V2 starter records (unchanged)
+imports.js          published custom records (starts empty)
+app.js              V2 UI with published imports and per-episode playback
+studio.html         local-draft catalog editor (publicly viewable, not an authenticated backend)
+assets/             original V2 artwork (unchanged)
+media/              original sample MP4 (unchanged)
 ```
-
-Or, for an authorized and appropriately shared Google Drive file:
-
-```js
-video: {type: 'drive', url: 'https://drive.google.com/file/d/YOUR_FILE_ID/view'}
-```
-
-The Google Drive embed requires each viewer to have file permissions. Google Drive is not designed as a mass-streaming/CDN backend and may enforce playback limits. GitHub Pages itself is public and does not provide secure student-only sign-in. Do not place copyrighted commercial film copies, personal student data, or secrets into this public GitHub repository.
-
-The default `catalog.js` has **12 fictional titles**. Only **The Last Signal** has a playable short **demo clip**. The others intentionally display details without an unavailable Play button. No fictitious "Continue Watching" progress, popularity rankings, or visitor analytics are shown.
-
-## Notes
-
-- **My List** uses `localStorage` and reuses the V1 key `nova-saved-v1`, so saved titles are retained in the same browser as long as the catalog IDs remain unchanged.
-- **Search** matches titles, descriptions, tags and genres.
-- **TV shows** display seasons and episode labels but don't claim those unprovided episodes are playable.
-- **Accessibility** includes keyboard navigation, dialog Escape key, button labels, reduced motion, and visible focus outlines.
