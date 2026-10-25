@@ -1,133 +1,182 @@
 (() => {
   'use strict';
   const items = Array.isArray(window.NOVA_CATALOG) ? window.NOVA_CATALOG : [];
-  const byId = new Map(items.map(x => [x.id, x]));
-  const el = sel => document.querySelector(sel);
-  const library = el('#library');
-  const searchEl = el('#search');
-  const savedKey = 'nova-saved-v1';
-  let page = 'home';
-  let genre = 'All';
-  let query = '';
+  const byId = new Map(items.map(item => [item.id, item]));
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+  const searchEl = $('#search');
+  const genreList = ['All', ...new Set(items.flatMap(i => i.genres || []))].sort((a,b)=>a==='All'?-1:b==='All'?1:a.localeCompare(b));
+  const saveKey = 'nova-saved-v1'; // Keeps V1 My List entries.
+  const featuredIds = ['last-signal','orbit-nine','neon-district'].filter(id=>byId.has(id));
+  const heroArt = {'last-signal':'assets/hero-signal.svg','orbit-nine':'assets/hero-orbit.svg','neon-district':'assets/hero-neon.svg'};
+  const html = input => String(input ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   let saved;
-  try {saved = new Set(JSON.parse(localStorage.getItem(savedKey) || '[]').filter(id => byId.has(id)));} catch {saved = new Set();}
-  let activeOverlay = null;
-  let lastFocus = null;
+  try {saved = new Set(JSON.parse(localStorage.getItem(saveKey) || '[]').filter(id=>byId.has(id)));}
+  catch {saved=new Set();}
+  let page = ['#movies','#series','#saved'].includes(location.hash) ? location.hash.slice(1) : 'home';
+  let genre='All';
+  let search='';
+  let feature=0;
+  let activeOverlay=null;
+  let lastFocus=null;
+  let toastTimer;
+  const poster = item => `assets/poster-${item.art}.svg`;
+  const backdrop = item => heroArt[item.id] || poster(item);
+  const kind = item => item.type==='series' ? 'Series' : 'Movie';
+  const meta = item => `${item.year}<span class="bullet">·</span>${html(kind(item))}<span class="bullet">·</span>${html(item.genres?.[0]||'Drama')}`;
+  const iconPlay = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
 
-  const escapeHTML = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const kindLabel = item => item.type === 'series' ? 'TV SERIES' : 'MOVIE';
-  const genreList = ['All','Sci-Fi','Action','Adventure','Drama','Comedy','Mystery','Animation','Thriller','Documentary'];
-  function poster(item) {return `assets/poster-${item.art}.svg`;}
-  function updateSavedCount() {el('#saved-count').textContent = saved.size;}
-  function setSaved(id) {
-    if (saved.has(id)) saved.delete(id); else saved.add(id);
-    try {localStorage.setItem(savedKey, JSON.stringify([...saved]));} catch {}
-    updateSavedCount(); render();
-    const btn = document.querySelector(`[data-save-detail="${id}"]`);
-    if(btn) {btn.textContent = saved.has(id) ? '✓ In My List' : '+ Add to My List';}
+  function savedCount() {$('#saved-count').textContent=saved.size;}
+  function persistSaved() {try{localStorage.setItem(saveKey,JSON.stringify([...saved]));}catch{}}
+  function setSaved(id){
+    if(!byId.has(id))return;
+    saved.has(id)?saved.delete(id):saved.add(id);
+    persistSaved();savedCount();render();
+    if(activeOverlay==='details')renderDetails(id);
+    if(featuredIds[feature]===id)updateHeroSave();
   }
-  function itemHTML(item) {
-    const inList = saved.has(item.id);
-    return `<article class="tile" tabindex="0" role="button" data-detail="${escapeHTML(item.id)}" aria-label="Details for ${escapeHTML(item.title)}">
-      <div class="poster"><img src="${poster(item)}" alt=""><span class="poster-badge">${escapeHTML(item.tag||kindLabel(item))}</span><button class="poster-save ${inList?'saved':''}" type="button" data-save="${escapeHTML(item.id)}" aria-label="${inList?'Remove':'Add'} ${escapeHTML(item.title)} ${inList?'from':'to'} My List">${inList?'✓':'+'}</button></div>
-      <div class="tile-meta"><div class="tile-name">${escapeHTML(item.title)}</div><div class="tile-info"><span>${escapeHTML(item.year)}</span><b></b><span>${item.type==='movie'?'Movie':'Series'}</span><b></b><span>${escapeHTML(item.age)}</span></div></div>
+  function card(item,shape='poster') {
+    const isSaved = saved.has(item.id);
+    return `<article class="media-card ${shape==='wide'?'wide':'poster-card'}">
+      <div class="card-art">
+        <button class="card-click" type="button" data-detail="${html(item.id)}" aria-label="Show details for ${html(item.title)}"><img src="${poster(item)}" alt="" loading="lazy"></button>
+        <span class="card-status">${html(item.tag || kind(item))}</span>
+        <button class="card-save ${isSaved?'saved':''}" type="button" data-save="${html(item.id)}" aria-label="${isSaved?'Remove':'Add'} ${html(item.title)} ${isSaved?'from':'to'} My List">${isSaved?'✓':'+'}</button>
+      </div>
+      <div class="card-title">${html(item.title)}</div>
+      <div class="card-caption">${meta(item)}</div>
     </article>`;
   }
-  function section(title,subtitle,arr,full=false) {
-    return `<section class="rail"><div class="rail-title-row"><div><h2 class="rail-title">${escapeHTML(title)}</h2>${subtitle?`<p class="rail-subtitle">${escapeHTML(subtitle)}</p>`:''}</div><div class="rail-count">${arr.length} TITLES</div></div><div class="rail-grid ${full?'results-grid':''}">${arr.map(itemHTML).join('')}</div></section>`;
+  function rail(id,title,subtitle,arr,shape='poster') {
+    if(!arr.length)return '';
+    return `<section class="rail" aria-labelledby="${id}-title"><div class="rail-head"><div><h2 id="${id}-title">${html(title)}</h2>${subtitle?`<p class="rail-subtitle">${html(subtitle)}</p>`:''}</div>
+      <div class="rail-tools"><button type="button" data-scroll="${id}" data-direction="-1" aria-label="Scroll ${html(title)} left">‹</button><button type="button" data-scroll="${id}" data-direction="1" aria-label="Scroll ${html(title)} right">›</button></div></div>
+      <div class="rail-scroller" id="${id}" tabindex="0" aria-label="${html(title)} titles">${arr.map(i=>card(i,shape)).join('')}</div></section>`;
   }
-  function visibleItems() {
+  function renderHero(){
+    if(!featuredIds.length){$('#hero').hidden=true;return;}
+    const item=byId.get(featuredIds[feature]);
+    $('#hero-image').style.backgroundImage=`url('${backdrop(item)}')`;
+    const custom={'last-signal':'THE LAST<br>SIGNAL','orbit-nine':'ORBIT<br>NINE','neon-district':'NEON<br>DISTRICT'};
+    $('#feature-title').innerHTML=custom[item.id]||html(item.title);
+    $('#feature-index').textContent=`${String(feature+1).padStart(2,'0')} / ${String(featuredIds.length).padStart(2,'0')}`;
+    $('#feature-meta').innerHTML=`<span class="age-chip">${html(item.age)}</span><span>${html(item.year)}</span><span class="meta-separator"></span><span>${html(item.length)}</span><span class="meta-separator"></span><span>${html(item.genres.slice(0,2).join(' / '))}</span>`;
+    $('#feature-description').textContent=item.description;
+    $('#feature-play').hidden=!item.video;
+    $('#feature-play').innerHTML=`${iconPlay} ${item.video?.demo?'Play sample':'Watch now'}`;
+    $('#feature-dots').innerHTML=featuredIds.map((id,i)=>`<button type="button" class="feature-dot ${i===feature?'active':''}" data-feature="${i}" aria-label="Featured story ${i+1}: ${html(byId.get(id).title)}" aria-pressed="${i===feature}"><span></span></button>`).join('');
+    updateHeroSave();
+  }
+  function updateHeroSave(){
+    if(!featuredIds.length)return;
+    const isSaved=saved.has(featuredIds[feature]);
+    const b=$('#feature-save');b.textContent=isSaved?'✓':'+';b.classList.toggle('active',isSaved);b.setAttribute('aria-label',`${isSaved?'Remove':'Add'} ${byId.get(featuredIds[feature]).title} ${isSaved?'from':'to'} My List`);
+  }
+  function visibleItems(){
     return items.filter(item => {
-      if(page === 'movies' && item.type !== 'movie') return false;
-      if(page === 'series' && item.type !== 'series') return false;
-      if(page === 'saved' && !saved.has(item.id)) return false;
-      if(genre !== 'All' && !item.genres.includes(genre)) return false;
-      if(query && !`${item.title} ${item.description} ${item.genres.join(' ')}`.toLowerCase().includes(query)) return false;
+      if(page==='movies'&&item.type!=='movie')return false;
+      if(page==='series'&&item.type!=='series')return false;
+      if(page==='saved'&&!saved.has(item.id))return false;
+      if(genre!=='All'&&!(item.genres||[]).includes(genre))return false;
+      if(search&&!`${item.title} ${item.description} ${(item.genres||[]).join(' ')} ${item.tag||''}`.toLowerCase().includes(search))return false;
       return true;
     });
   }
-  function render() {
-    updateSavedCount();
-    document.querySelectorAll('.nav-link').forEach(b => {let on=b.dataset.page===page;b.classList.toggle('active',on);b.setAttribute('aria-current',on?'page':'false');});
-    el('#hero').hidden = page !== 'home' || Boolean(query) || genre !== 'All';
-    el('#genre-bar').innerHTML = genreList.map(g => `<button type="button" class="chip ${g === genre?'active':''}" data-genre="${escapeHTML(g)}" aria-pressed="${g===genre}">${escapeHTML(g)}</button>`).join('');
-    const heading = el('#section-heading');
-    const titles={home:['Good stories live','here.'],movies:['Explore the','movies.'],series:['Find your next','series.'],saved:['Your personal','watchlist.']};
-    const pair=titles[page];
-    heading.querySelector('h1').innerHTML=`${escapeHTML(pair[0])} <span>${escapeHTML(pair[1])}</span>`;
-    heading.querySelector('.eyebrow').textContent=query?'RESULTS FOR YOUR SEARCH':page==='saved'?'YOUR SAVED TITLES':page==='movies'?'THE MOVIE COLLECTION':page==='series'?'BINGE-WORTHY STORIES':'YOUR SCREEN. YOUR STORIES.';
-    const arr = visibleItems();
-    if(!arr.length) {
-      library.innerHTML = `<div class="empty"><div class="magnify">⌕</div><h2>Nothing here yet.</h2><p>${page==='saved'?'Add titles using the + button on movie cards.':'Try another search or choose a different genre.'}</p></div>`;
-      return;
-    }
-    if(query || genre !== 'All' || page !== 'home') {
-      let title = query ? `Results for “${searchEl.value.trim()}”` : page==='saved'?'My List':page==='movies'?'All Movies':page==='series'?'All Series':`${genre} Stories`;
-      library.innerHTML = section(title,'Browse the collection',arr,true);
-      return;
-    }
-    library.innerHTML = [
-      section('Fresh off the reel','A little something for everyone',items.slice(0,6)),
-      section('Movie night, sorted','Your next big-screen favorite',items.filter(x=>x.type==='movie').slice(0,6)),
-      section('One more episode','Stories worth staying up for',items.filter(x=>x.type==='series'))
-    ].join('');
+  function homeRails(){
+    const movies=items.filter(i=>i.type==='movie');
+    const series=items.filter(i=>i.type==='series');
+    const picks=['last-signal','blue-hour','orbit-nine','paper-kings','neon-district','good-company','echo-valley'].map(id=>byId.get(id)).filter(Boolean);
+    const collections=['Sci-Fi','Animation','Adventure','Mystery'].filter(g=>items.some(i=>i.genres.includes(g)));
+    const collectionSection=`<section class="rail" aria-labelledby="collections-heading"><div class="rail-head"><div><h2 id="collections-heading">Browse by mood</h2><p class="rail-subtitle">A different direction for movie night</p></div></div><div class="collections-grid">${collections.map(g=>`<button type="button" class="collection-card" data-collection="${html(g)}"><span class="collection-overline">NOVA COLLECTION</span><span class="collection-name">${html(g)}</span><span class="collection-action">Explore titles →</span></button>`).join('')}</div></section>`;
+    return rail('rail-picks','NOVA Picks','Handpicked from the demo collection',picks,'wide')+
+      rail('rail-movies','Movies to explore','Something for every kind of night',movies)+
+      rail('rail-series','Find your next series','One episode becomes three',series,'wide')+
+      collectionSection+
+      rail('rail-more','More to explore','A few you might have missed',[...items].reverse())+
+      '<p class="library-note">NOVA V2 is a design demo. Titles are fictional and do not represent real streaming availability.</p>';
   }
-  function details(id) {
+  function render(){
+    savedCount();
+    $$('.nav-link').forEach(button=>{const active=button.dataset.page===page;button.classList.toggle('active',active);active?button.setAttribute('aria-current','page'):button.removeAttribute('aria-current')});
+    const isHome=page==='home'&&!search&&genre==='All';
+    $('#hero').hidden=!isHome;
+    $('#home-content').hidden=!isHome;
+    $('#browse-content').hidden=isHome;
+    if(isHome){renderHero();$('#home-library').innerHTML=homeRails();return;}
+    $('#genre-bar').innerHTML=genreList.map(g=>`<button type="button" class="chip ${genre===g?'active':''}" data-genre="${html(g)}" aria-pressed="${genre===g}">${html(g)}</button>`).join('');
+    const headings={home:['SEARCH THE LIBRARY','Explore the collection','Discover stories across genres.'],movies:['THE MOVIE LIBRARY','All movies','A little of everything, in one place.'],series:['THE SERIES LIBRARY','TV series','Find your next story to follow.'],saved:['YOUR COLLECTION','My List','The titles you saved on this device.']};
+    const [eye,title,desc]=headings[page]||headings.home;
+    $('#browse-eyebrow').textContent=search?'SEARCH RESULTS':eye;
+    $('#browse-title').innerHTML=search?`Search results<span>.</span>`:`${html(title)}<span>.</span>`;
+    $('#browse-description').textContent=search?`Looking for “${searchEl.value.trim()}”`:desc;
+    const arr=visibleItems();
+    $('#library').innerHTML=arr.length?`<p class="results-heading">${arr.length} ${arr.length===1?'title':'titles'}${genre!=='All'?' · '+html(genre):''}</p><div class="browse-grid">${arr.map(i=>card(i)).join('')}</div>`:`<div class="empty"><h2>${page==='saved'&&!search?'Your list is empty.':'No matching titles.'}</h2><p>${page==='saved'&&!search?'Add titles with the + icon and find them here whenever you return on this device.':'Try another title, clear your search, or choose a different genre.'}</p></div>`;
+  }
+  function changePage(next){
+    page=next;genre='All';search='';searchEl.value='';
+    try { history.replaceState(null,'',next==='home'?location.pathname+location.search:'#'+next); } catch {}
+    render();window.scrollTo({top:0,behavior:'auto'});
+  }
+  function renderDetails(id){
     const item=byId.get(id);if(!item)return;
-    el('#details-body').innerHTML=`
-      <div class="details-cover" style="background-image:linear-gradient(90deg, #16181e44, #16181e11),url('${poster(item)}')"></div>
-      <div class="details-main"><h2>${escapeHTML(item.title)}</h2><div class="details-meta"><span>${escapeHTML(item.year)}</span><span>•</span><span class="age-chip">${escapeHTML(item.age)}</span><span>•</span><span>${escapeHTML(item.length)}</span><span>•</span><span>${kindLabel(item)}</span></div>
-      <p class="details-description">${escapeHTML(item.description)}</p>
-      <div class="details-buttons"><button class="btn btn-primary" data-play="${escapeHTML(item.id)}"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>${item.video?.demo?'Play sample':item.video?'Watch now':'Playback unavailable'}</button><button class="btn btn-outline" data-save-detail="${escapeHTML(item.id)}">${saved.has(id)?'✓ In My List':'+ Add to My List'}</button></div>
-      <div class="details-label">GENRES</div><div class="detail-genres">${escapeHTML(item.genres.join('  •  '))}</div>
-      ${item.seasons?`<div class="details-label">EPISODES</div>${item.seasons.map(season=>`<div class="episodes"><strong>${escapeHTML(season.label)}</strong>${season.episodes.map((ep,i)=>`<div class="episode"><span>${String(i+1).padStart(2,'0')}. ${escapeHTML(ep.title)}</span><span>${escapeHTML(ep.length)}</span></div>`).join('')}</div>`).join('')}`:''}
-      </div>`;
-    openOverlay('details');
+    const hasVideo=Boolean(item.video);
+    $('#details-body').innerHTML=`<div class="details-cover" style="background-image:linear-gradient(0deg, #181920, #18192000 70%),url('${backdrop(item)}')"></div>
+    <div class="details-main"><h2>${html(item.title)}</h2>
+    <div class="details-meta"><span>${html(item.year)}</span><span>·</span><span class="age-chip">${html(item.age)}</span><span>·</span><span>${html(item.length)}</span><span>·</span><span>${kind(item)}</span></div>
+    <p class="details-description">${html(item.description)}</p>
+    <div class="details-buttons">${hasVideo?`<button class="btn btn-primary" type="button" data-play="${html(item.id)}">${iconPlay} ${item.video.demo?'Play sample':'Play'}</button>`:''}<button class="btn btn-secondary" type="button" data-save="${html(item.id)}">${saved.has(id)?'✓ In My List':'+ Add to My List'}</button></div>
+    ${!hasVideo?'<p class="library-note">No playback is attached to this fictional demo title.</p>':''}
+    <div class="details-label">GENRES</div><div class="detail-genres">${html((item.genres||[]).join(' · '))}</div>
+    ${item.seasons?`<div class="details-label">EPISODES</div>${item.seasons.map(season=>`<div class="episodes"><strong>${html(season.label)}</strong>${season.episodes.map((ep,i)=>`<div class="episode"><span>${String(i+1).padStart(2,'0')} &nbsp; ${html(ep.title)}</span><span>${html(ep.length)}</span></div>`).join('')}</div>`).join('')}`:''}</div>`;
   }
-  function getDrivePreview(url) {
-    if (!url || typeof url !== 'string') return null;
-    try {
-      const parsed=new URL(url);
-      if(parsed.hostname!=='drive.google.com' && parsed.hostname!=='docs.google.com')return null;
-      const id = parsed.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1] || (parsed.pathname==='/open' ? parsed.searchParams.get('id') : null);
-      if(id && /^[a-zA-Z0-9_-]{10,}$/.test(id)) return `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview`;
-    } catch {} return null;
+  function openDetails(id){if(!byId.has(id))return;renderDetails(id);openOverlay('details');}
+  function getDrivePreview(url){
+    if(!url||typeof url!=='string')return null;
+    try {const p=new URL(url);if(!['drive.google.com','docs.google.com'].includes(p.hostname))return null;const id=p.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)?.[1]||(p.pathname==='/open'?p.searchParams.get('id'):null);if(id&&/^[a-zA-Z0-9_-]{10,}$/.test(id))return `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview`;}catch{}return null;
   }
-  function player(id) {
+  function play(id){
     const item=byId.get(id);if(!item)return;
-    el('#player-title').textContent=item.title;
-    const v=item.video;
-    const frame=el('#player-frame');
-    if(v && v.type==='mp4' && v.url && !/^(javascript|data):/i.test(v.url)) {
-      const vid=document.createElement('video'); vid.setAttribute('controls',''); vid.setAttribute('playsinline','');vid.autoplay=true;vid.src=v.url;vid.setAttribute('aria-label',`${item.title} video`);frame.replaceChildren(vid);
-      el('#player-caption').textContent=v.demo?'Original short test animation included to demonstrate the player. This is not the full fictional movie.':'Play only videos you are authorized to share.';
-    } else if(v && v.type==='drive' && getDrivePreview(v.url)) {
-      const iframe=document.createElement('iframe');iframe.src=getDrivePreview(v.url);iframe.allow='autoplay; fullscreen';iframe.allowFullscreen=true;iframe.title=`${item.title} — Google Drive player`;iframe.referrerPolicy='strict-origin-when-cross-origin';frame.replaceChildren(iframe);
-      el('#player-caption').textContent='Google Drive preview. Playback requires access to the file and permission from the account or school administrator.';
-    } else {
-      frame.innerHTML=`<div class="player-placeholder"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5M12 16v1"/></svg><h3>Coming to the library</h3><p>This is a fictional placeholder. Add an authorized MP4 or Google Drive video link in <strong>catalog.js</strong> to enable playback.</p></div>`;
-      el('#player-caption').textContent='No video attached to this demo title.';
+    $('#player-title').textContent=item.title;
+    const v=item.video;const frame=$('#player-frame');
+    if(v?.type==='mp4'&&v.url&&(/^(https?:\/\/|media\/)/i.test(v.url))){
+      const video=document.createElement('video');video.controls=true;video.playsInline=true;video.autoplay=true;video.src=v.url;video.setAttribute('aria-label',`${item.title} video`);frame.replaceChildren(video);
+      $('#player-caption').textContent=v.demo?'Original short test animation, not a complete feature film.':'Only stream content you have permission to share.';
+    }else if(v?.type==='drive'&&getDrivePreview(v.url)){
+      const iframe=document.createElement('iframe');iframe.src=getDrivePreview(v.url);iframe.title=`${item.title} — Google Drive preview`;iframe.allow='autoplay; fullscreen';iframe.allowFullscreen=true;frame.replaceChildren(iframe);
+      $('#player-caption').textContent='Viewers need individual file access. Playback may be limited by Drive or your school.';
+    }else{
+      frame.innerHTML='<div class="player-placeholder"><h3>No video available</h3><p>This fictional listing has no playable video. Add a permitted MP4 or Drive preview in catalog.js.</p></div>';
+      $('#player-caption').textContent='';
     }
-    closeOverlay('details');openOverlay('player');
+    if(activeOverlay)closeOverlay(activeOverlay,false);
+    openOverlay('player');
   }
-  function openOverlay(which){lastFocus=document.activeElement;activeOverlay=which;document.body.style.overflow='hidden';const o=el(`#${which}-overlay`);o.hidden=false;o.querySelector('[role="dialog"]').focus();}
-  function closeOverlay(which){const o=el(`#${which}-overlay`);o.hidden=true;if(which==='player')el('#player-frame').replaceChildren();if(activeOverlay===which){activeOverlay=null;document.body.style.overflow='';}if(lastFocus?.isConnected)lastFocus.focus();}
-  document.addEventListener('click',e=>{
-    const nav=e.target.closest('[data-page]');if(nav){page=nav.dataset.page;genre='All';query='';searchEl.value='';render();window.scrollTo({top:0,behavior:'smooth'});return;}
-    const g=e.target.closest('[data-genre]');if(g){genre=g.dataset.genre;render();return;}
-    const close=e.target.closest('[data-close]');if(close){closeOverlay(close.dataset.close);return;}
-    const saveDetail=e.target.closest('[data-save-detail]');if(saveDetail){setSaved(saveDetail.dataset.saveDetail);return;}
-    const save=e.target.closest('[data-save]');if(save){setSaved(save.dataset.save);return;}
-    const play=e.target.closest('[data-play]');if(play){player(play.dataset.play);return;}
-    const detail=e.target.closest('[data-detail]');if(detail){details(detail.dataset.detail);return;}
+  function openOverlay(name){lastFocus=document.activeElement;activeOverlay=name;document.body.classList.add('locked');const o=$(`#${name}-overlay`);o.hidden=false;o.querySelector('[role="dialog"]').focus();}
+  function closeOverlay(name,restore=true){const o=$(`#${name}-overlay`);o.hidden=true;if(name==='player')$('#player-frame').replaceChildren();if(activeOverlay===name){activeOverlay=null;document.body.classList.remove('locked');}if(restore&&lastFocus?.isConnected)lastFocus.focus();}
+  document.addEventListener('click',event=>{
+    const target=event.target;
+    const nav=target.closest('[data-page]');if(nav){changePage(nav.dataset.page);return;}
+    if(target.closest('#brand-link')){event.preventDefault();changePage('home');return;}
+    const collection=target.closest('[data-collection]');if(collection){page='home';genre=collection.dataset.collection;search='';searchEl.value='';render();scrollTo({top:0,behavior:'auto'});return;}
+    const featureButton=target.closest('[data-feature]');if(featureButton){feature=Number(featureButton.dataset.feature);renderHero();return;}
+    const scroll=target.closest('[data-scroll]');if(scroll){const rail=document.getElementById(scroll.dataset.scroll);if(rail){const first=rail.querySelector('.media-card');rail.scrollBy({left:(first?.getBoundingClientRect().width||300)*Number(scroll.dataset.direction)*2,behavior:'smooth'});}return;}
+    const genreButton=target.closest('[data-genre]');if(genreButton){genre=genreButton.dataset.genre;render();return;}
+    const close=target.closest('[data-close]');if(close){closeOverlay(close.dataset.close);return;}
+    const save=target.closest('[data-save]');if(save){setSaved(save.dataset.save);return;}
+    const playBtn=target.closest('[data-play]');if(playBtn){play(playBtn.dataset.play);return;}
+    const detail=target.closest('[data-detail]');if(detail){openDetails(detail.dataset.detail);return;}
   });
-  document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'&&activeOverlay){closeOverlay(activeOverlay);return;}
-    const tile=e.target.closest?.('[data-detail]');if(tile && (e.key==='Enter'||e.key===' ') && e.target===tile){e.preventDefault();details(tile.dataset.detail);}
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&activeOverlay){closeOverlay(activeOverlay);return;}
+    if(event.key==='Tab'&&activeOverlay){const overlay=$(`#${activeOverlay}-overlay`);const focusable=[...overlay.querySelectorAll('button:not([disabled]),a[href],video[controls],iframe')].filter(e=>e.getClientRects().length);if(focusable.length){const first=focusable[0],last=focusable.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}}
   });
-  searchEl.addEventListener('input',()=>{query=searchEl.value.trim().toLowerCase();render();});
-  el('#feature-play').addEventListener('click',()=>player('last-signal'));
-  el('#feature-details').addEventListener('click',()=>details('last-signal'));
-  if(location.hash==='#movies'||location.hash==='#series'||location.hash==='#saved')page=location.hash.slice(1);
+  searchEl.addEventListener('input',()=>{search=searchEl.value.trim().toLowerCase();genre='All';render();});
+  $('#feature-play').addEventListener('click',()=>play(featuredIds[feature]));
+  $('#feature-details').addEventListener('click',()=>openDetails(featuredIds[feature]));
+  $('#feature-save').addEventListener('click',()=>setSaved(featuredIds[feature]));
+  $('#feature-prev').addEventListener('click',()=>{feature=(feature+featuredIds.length-1)%featuredIds.length;renderHero();});
+  $('#feature-next').addEventListener('click',()=>{feature=(feature+1)%featuredIds.length;renderHero();});
+  const onScroll=()=>$('.site-header').classList.toggle('scrolled',window.scrollY>15);
+  window.addEventListener('scroll',onScroll,{passive:true});onScroll();
   render();
 })();
