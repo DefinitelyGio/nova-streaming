@@ -20,6 +20,7 @@
   let genre='All';
   let search='';
   let feature=0;
+  let sortOrder="default";
   let activeOverlay=null;
   let lastFocus=null;
   let toastTimer;
@@ -46,9 +47,9 @@
     if(activeOverlay==='details')renderDetails(id);
     if(featuredIds[feature]===id)updateHeroSave();
   }
-  function card(item,shape='poster') {
+  function card(item,shape='poster',rank=null) {
     const isSaved = saved.has(item.id);
-    return `<article class="media-card ${shape==='wide'?'wide':'poster-card'}">
+    return `<article class="media-card ${shape==='wide'?'wide':'poster-card'} ${rank!==null?'ranked-card':''}">${rank!==null?`<span class="rank-number" aria-label="Rank ${rank}">${String(rank).padStart(2,'0')}</span>`:''}
       <div class="card-art">
         <button class="card-click" type="button" data-detail="${html(item.id)}" aria-label="Show details for ${html(item.title)}"><img src="${poster(item)}" alt="" loading="lazy"></button>
         <span class="card-status">${html(item.tag || kind(item))}</span>
@@ -58,11 +59,11 @@
       <div class="card-caption">${meta(item)}</div>
     </article>`;
   }
-  function rail(id,title,subtitle,arr,shape='poster') {
+  function rail(id,title,subtitle,arr,shape='poster',numbered=false) {
     if(!arr.length)return '';
     return `<section class="rail" aria-labelledby="${id}-title"><div class="rail-head"><div><h2 id="${id}-title">${html(title)}</h2>${subtitle?`<p class="rail-subtitle">${html(subtitle)}</p>`:''}</div>
       <div class="rail-tools"><button type="button" data-scroll="${id}" data-direction="-1" aria-label="Scroll ${html(title)} left">‹</button><button type="button" data-scroll="${id}" data-direction="1" aria-label="Scroll ${html(title)} right">›</button></div></div>
-      <div class="rail-scroller" id="${id}" tabindex="0" aria-label="${html(title)} titles">${arr.map(i=>card(i,shape)).join('')}</div></section>`;
+      <div class="rail-scroller ${numbered?'ranked-scroller':''}" id="${id}" tabindex="0" aria-label="${html(title)} titles">${arr.map((i,n)=>card(i,shape,numbered?n+1:null)).join('')}</div></section>`;
   }
   function renderHero(){
     if(!featuredIds.length){$('#hero').hidden=true;return;}
@@ -85,9 +86,9 @@
   }
   function visibleItems(){
     return items.filter(item => {
-      if(page==='movies'&&item.type!=='movie')return false;
-      if(page==='series'&&item.type!=='series')return false;
-      if(page==='saved'&&!saved.has(item.id))return false;
+      if(!search&&page==='movies'&&item.type!=='movie')return false;
+      if(!search&&page==='series'&&item.type!=='series')return false;
+      if(!search&&page==='saved'&&!saved.has(item.id))return false;
       if(genre!=='All'&&!(item.genres||[]).includes(genre))return false;
       if(search&&!`${item.title} ${item.description} ${(item.genres||[]).join(' ')} ${item.tag||''}`.toLowerCase().includes(search))return false;
       return true;
@@ -96,16 +97,19 @@
   function homeRails(){
     const movies=items.filter(i=>i.type==='movie');
     const series=items.filter(i=>i.type==='series');
-    const picks=['last-signal','blue-hour','orbit-nine','paper-kings','neon-district','good-company','echo-valley'].map(id=>byId.get(id)).filter(Boolean);
-    const collections=['Sci-Fi','Animation','Adventure','Mystery'].filter(g=>items.some(i=>i.genres.includes(g)));
-    const collectionSection=`<section class="rail" aria-labelledby="collections-heading"><div class="rail-head"><div><h2 id="collections-heading">Browse by mood</h2><p class="rail-subtitle">A different direction for movie night</p></div></div><div class="collections-grid">${collections.map(g=>`<button type="button" class="collection-card" data-collection="${html(g)}"><span class="collection-overline">NOVA COLLECTION</span><span class="collection-name">${html(g)}</span><span class="collection-action">Explore titles →</span></button>`).join('')}</div></section>`;
-    return rail('rail-imported','Library additions','Catalog entries published from Library Studio',importedItems.filter(i=>byId.has(i.id)).slice().reverse(),'wide')+
-      rail('rail-picks','NOVA Picks','Handpicked from the demo collection',picks,'wide')+
-      rail('rail-movies','Movies to explore','Something for every kind of night',movies)+
-      rail('rail-series','Find your next series','One episode becomes three',series,'wide')+
+    const imported=importedItems.filter(i=>byId.has(i.id)).slice().reverse();
+    const picks=['last-signal','orbit-nine','blue-hour','neon-district','paper-kings','sunset-run','northline','good-company','echo-valley','tiny-planet'].map(id=>byId.get(id)).filter(Boolean);
+    const recentlyAdded= [...imported, ...items.filter(i=>!imported.some(x=>x.id===i.id)).sort((a,b)=>Number(b.year||0)-Number(a.year||0))];
+    const collections=['Sci-Fi','Animation','Adventure','Mystery'].filter(g=>items.some(i=>(i.genres||[]).includes(g)));
+    const collectionSection=`<section class="rail collection-section" aria-labelledby="collections-heading"><div class="rail-head"><div><p class="rail-eyebrow">GO DEEPER</p><h2 id="collections-heading">Browse by genre</h2></div></div><div class="collections-grid">${collections.map(g=>`<button type="button" class="collection-card" data-collection="${html(g)}"><span class="collection-overline">NOVA COLLECTION</span><span class="collection-name">${html(g)}</span><span class="collection-action">Explore collection <span aria-hidden="true">↗</span></span></button>`).join('')}</div></section>`;
+    return rail('rail-ranked','Top 10 picks','Curated for this demo · not viewing statistics',picks.slice(0,10),'poster',true)+
+      rail('rail-imported','Fresh from the library','Recently published through Library Studio',imported,'poster')+
+      rail('rail-movies','Popular movie picks','Stories for every kind of night',movies,'poster')+
+      rail('rail-series','Series worth exploring','Find something to follow',series,'poster')+
       collectionSection+
-      rail('rail-more','More to explore','A few you might have missed',[...items].reverse())+
-      '<p class="library-note">Demo entries are fictional. Other entries are catalog metadata and do not imply streaming availability.</p>';
+      rail('rail-new','New & noteworthy','The latest in the NOVA catalog',recentlyAdded.slice(0,12),'poster')+
+      rail('rail-late','A second look','Stories you may have missed',[...items].reverse(),'wide')+
+      '<div class="catalog-disclaimer">This is a fictional demonstration catalog. Rankings are editorial examples, not real viewing data. Streaming sources should only be added with permission.</div>';
   }
   function render(){
     savedCount();
@@ -122,10 +126,14 @@
     $('#browse-title').innerHTML=search?`Search results<span>.</span>`:`${html(title)}<span>.</span>`;
     $('#browse-description').textContent=search?`Looking for “${searchEl.value.trim()}”`:desc;
     const arr=visibleItems();
+    if(sortOrder==='az')arr.sort((a,b)=>a.title.localeCompare(b.title));
+    if(sortOrder==='recent')arr.sort((a,b)=>Number(b.year||0)-Number(a.year||0));
+    if(sortOrder==='oldest')arr.sort((a,b)=>Number(a.year||0)-Number(b.year||0));
+    $('#sort-select').value=sortOrder;
     $('#library').innerHTML=arr.length?`<p class="results-heading">${arr.length} ${arr.length===1?'title':'titles'}${genre!=='All'?' · '+html(genre):''}</p><div class="browse-grid">${arr.map(i=>card(i)).join('')}</div>`:`<div class="empty"><h2>${page==='saved'&&!search?'Your list is empty.':'No matching titles.'}</h2><p>${page==='saved'&&!search?'Add titles with the + icon and find them here whenever you return on this device.':'Try another title, clear your search, or choose a different genre.'}</p></div>`;
   }
   function changePage(next){
-    page=next;genre='All';search='';searchEl.value='';
+    page=next;genre='All';search='';searchEl.value='';sortOrder='default';
     try { history.replaceState(null,'',next==='home'?location.pathname+location.search:'#'+next); } catch {}
     render();window.scrollTo({top:0,behavior:'auto'});
   }
@@ -195,6 +203,7 @@
     if(event.key==='Tab'&&activeOverlay){const overlay=$(`#${activeOverlay}-overlay`);const focusable=[...overlay.querySelectorAll('button:not([disabled]),a[href],video[controls],iframe')].filter(e=>e.getClientRects().length);if(focusable.length){const first=focusable[0],last=focusable.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}}
   });
   searchEl.addEventListener('input',()=>{search=searchEl.value.trim().toLowerCase();genre='All';render();});
+  $('#sort-select').addEventListener('change',e=>{sortOrder=e.target.value;render();});
   $('#feature-play').addEventListener('click',()=>play(featuredIds[feature]));
   $('#feature-details').addEventListener('click',()=>openDetails(featuredIds[feature]));
   $('#feature-save').addEventListener('click',()=>setSaved(featuredIds[feature]));

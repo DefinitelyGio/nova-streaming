@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b0c11">
-  <meta name="description" content="NOVA — a cinematic movie and series discovery demo with original fictional titles and sample video.">
-  <title>NOVA — Movies and stories, thoughtfully collected</title>
+  <meta name="theme-color" content="#0a0b0f">
+  <meta name="description" content="NOVA — discover films, series, and carefully curated collections. A demo catalog with original fictional stories.">
+  <title>NOVA — Movies &amp; Series</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=22">
   <script defer src="catalog.js"></script>
   <script defer src="imports.js"></script>
-  <script defer src="app.js"></script>
+  <script defer src="app.js?v=22"></script>
 </head>
 <body>
   <a href="#main" class="skip-link">Skip to content</a>
@@ -26,9 +26,9 @@
       <div class="header-right">
         <label class="search-box" aria-label="Search library">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>
-          <input id="search" type="search" placeholder="Search the library" autocomplete="off" aria-label="Search titles and genres">
+          <input id="search" type="search" placeholder="Search movies and series" autocomplete="off" aria-label="Search titles and genres">
         </label>
-        <span class="demo-label"><span></span> DEMO LIBRARY</span>
+        <span class="demo-label"><span></span> CURATED DEMO</span>
       </div>
     </div>
   </header>
@@ -38,7 +38,7 @@
       <div class="hero-image" id="hero-image" aria-hidden="true"></div>
       <div class="hero-shade" aria-hidden="true"></div>
       <div class="hero-content page-gutter">
-        <div class="hero-kicker"><span class="kicker-line"></span> NOVA FEATURED <span class="kicker-number" id="feature-index">01 / 03</span></div>
+        <div class="hero-kicker"><span class="kicker-line"></span> FEATURED ON NOVA <span class="kicker-number" id="feature-index">01 / 03</span></div>
         <h1 class="hero-title" id="feature-title">The Last<br>Signal</h1>
         <div class="hero-meta" id="feature-meta"></div>
         <p class="hero-summary" id="feature-description"></p>
@@ -54,17 +54,27 @@
       </div>
     </section>
 
-    <div class="home-content page-gutter" id="home-content"><div id="home-library"></div></div>
+    <div class="home-content page-gutter" id="home-content">
+      <div class="home-intro">
+        <div><p class="home-intro-kicker">EXPLORE NOVA</p><h2>Find your next favorite.</h2></div>
+        <div class="home-shortcuts" aria-label="Browse collections">
+          <button type="button" data-page="movies">All movies <span>↗</span></button>
+          <button type="button" data-page="series">TV series <span>↗</span></button>
+          <button type="button" data-collection="Animation">Animation <span>↗</span></button>
+        </div>
+      </div>
+      <div id="home-library"></div>
+    </div>
 
     <div class="browse-content page-gutter" id="browse-content" hidden>
       <div class="browse-heading" id="section-heading"><span class="eyebrow" id="browse-eyebrow">THE COLLECTION</span><h1 id="browse-title">The collection<span>.</span></h1><p id="browse-description">Find something worth watching.</p></div>
-      <div class="category-bar" id="genre-bar" aria-label="Filter titles by genre"></div>
+      <div class="browse-toolbar"><div class="category-bar" id="genre-bar" aria-label="Filter titles by genre"></div><label class="sort-control">Sort <select id="sort-select" aria-label="Sort titles"><option value="default">Featured</option><option value="recent">Newest</option><option value="az">A–Z</option><option value="oldest">Oldest</option></select></label></div>
       <div id="library" aria-live="polite"></div>
     </div>
   </main>
 
   <footer class="site-footer page-gutter">
-    <div class="footer-brand"><span class="footer-wordmark">NOVA<span>.</span></span><span>Good stories, good company.</span></div>
+    <div class="footer-brand"><span class="footer-wordmark">NOVA<span>.</span></span><span>Good stories. All in one place.</span></div>
     <div class="footer-notice">Original demo titles and community library metadata.<br>Only distribute videos you have permission to share.<br><a href="studio.html">Library Studio</a> · Changes made there stay on your device until you publish the exported catalog.</div>
   </footer>
 

@@ -21,3 +21,69 @@
 
 /* Published catalog additions and season selector */
 .season-select-label{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:14px 0;color:#cac8d4;font-size:12px}.season-select{appearance:auto;border:1px solid #4d4b59;border-radius:5px;background:#252630;color:#f4f2f1;padding:10px 14px;font:inherit;min-width:165px}.episode-play{background:#8f80ea;color:#111118;border:0;border-radius:4px;padding:7px 10px;margin-left:10px;font-size:11px;font-weight:700}.episode-play:hover{background:#b6aafc}.site-footer a{color:#c6bcff;text-decoration:underline;text-underline-offset:3px}.site-footer a:hover{color:white}
+
+
+/* NOVA V2.2: poster-first discovery inspired by the browse hierarchy of film indexes.
+   Original styling, original artwork, and original code. */
+:root{--bg:#090a0f;--panel:#171922;--panel2:#20212b;--accent:#9a88ff;--line:rgba(255,255,255,.115);--gutter:clamp(20px,4.5vw,86px)}
+body{background:#090a0f}
+.site-header{height:72px;background:#090a0ff5}
+.site-header.scrolled{background:#090a0ffd}
+.wordmark{font-size:32px;letter-spacing:.012em}
+.logo-mark{color:#9e8dff}
+.nav-link{font-size:12px;letter-spacing:.015em}
+.nav-link.active:after{background:var(--accent);height:3px;border-radius:2px 2px 0 0}
+.search-box{width:clamp(190px,21vw,315px);height:40px;border-radius:6px;background:#15161e}
+.demo-label{font-size:9px}
+.hero{height:clamp(420px,53vw,590px);max-height:74vh;background:#161521}
+.hero-image{background-position:center 46%;background-size:cover}
+.hero-shade{background:linear-gradient(90deg,#090a0ffb 0%,#090a0fe8 18%,#090a0fa8 36%,#090a0f13 75%),linear-gradient(0deg,#090a0f 0%,#090a0fcc 9%,transparent 39%)}
+.hero-content{bottom:48px;max-width:1760px}
+.hero-title{font-size:clamp(62px,7vw,106px);margin:20px 0 16px;max-width:570px;letter-spacing:.003em}
+.hero-summary{max-width:445px;margin:16px 0 22px;font-size:13px;line-height:1.75}
+.hero-kicker{font-size:10px}
+.hero-controls{bottom:59px}
+.home-content{margin-top:-22px;padding-bottom:76px}
+.home-intro{display:flex;align-items:end;justify-content:space-between;gap:20px;padding-top:4px;margin:0 0 30px}
+.home-intro-kicker,.rail-eyebrow{color:var(--accent);font-size:10px;letter-spacing:.18em;font-weight:800;margin:0 0 6px}
+.home-intro h2{font-size:clamp(24px,2.4vw,35px);font-family:'Barlow Condensed',sans-serif;margin:0;font-weight:700;line-height:1.05}
+.home-shortcuts{display:flex;gap:14px;flex-wrap:wrap}
+.home-shortcuts button{display:inline-flex;align-items:center;gap:10px;border:0;border-bottom:1px solid #494957;background:transparent;color:#d1cfda;font-size:12px;font-weight:600;padding:6px 0}
+.home-shortcuts button span{color:#a99aff}
+.home-shortcuts button:hover{color:white;border-color:var(--accent)}
+.rail{margin-bottom:41px}
+.rail-head{align-items:center;margin-bottom:16px}
+.rail-head h2{font-size:clamp(24px,2.2vw,32px);letter-spacing:.008em}
+.rail-subtitle{margin-top:5px;font-size:11px}
+.rail-tools button{border-radius:5px;background:#171821}
+.rail-scroller{gap:15px;padding-bottom:6px}
+.media-card.poster-card{width:clamp(140px,14.3vw,210px)}
+.media-card.wide{width:clamp(248px,26vw,370px)}
+.card-art{border-radius:5px;background:#181a24}
+.media-card:hover .card-art{transform:translateY(-3px)}
+.card-title{font-size:13px;margin:10px 0 5px;font-weight:700}
+.card-caption{font-size:11px}
+.card-status{font-size:8px;letter-spacing:.05em;background:#0a0b0edb;padding:5px 6px;bottom:7px;left:7px}
+.card-save{opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s;}
+.media-card:hover .card-save,.card-save:focus-visible,.card-save.saved{opacity:1;transform:none}
+/* A ranked row with bold editorial numbering instead of external rating claims. */
+.ranked-scroller{gap:8px}
+.ranked-card{padding-left:31px;position:relative}
+.ranked-card.poster-card{width:clamp(168px,18vw,257px)}
+.ranked-card .card-art{position:relative;z-index:1}
+.rank-number{position:absolute;z-index:0;bottom:64px;left:-4px;font-family:'Barlow Condensed',Impact,sans-serif;font-weight:800;font-size:clamp(95px,10.7vw,150px);line-height:.75;letter-spacing:-.07em;color:#11111c;-webkit-text-stroke:2px #ada4c9;text-shadow:2px 1px 4px #000b;pointer-events:none}
+.ranked-card .card-title,.ranked-card .card-caption{padding-left:1px}
+.collection-section{margin:47px 0 44px}
+.collection-card{border-radius:5px;min-height:133px}
+.catalog-disclaimer{margin:15px 0 12px;padding:17px 0;border-top:1px solid var(--line);color:#8c8c98;font-size:11px;line-height:1.65}
+.browse-toolbar{display:flex;align-items:center;justify-content:space-between;gap:24px}
+.category-bar{flex:1;min-width:0}
+.sort-control{display:flex;align-items:center;white-space:nowrap;gap:10px;color:#a7a4b0;font-size:12px}
+.sort-control select{background:#171821;color:#f3f1f7;border:1px solid #4b4858;border-radius:5px;padding:9px 11px;font:inherit;min-width:112px}
+@media (hover:none){.card-save{opacity:1;transform:none}}
+@media(max-width:850px){.home-intro{align-items:start;flex-direction:column;gap:12px}.hero{height:520px}.hero-title{font-size:75px}.home-shortcuts{gap:18px}.demo-label{display:none}}
+@media(max-width:600px){.hero{height:480px;max-height:none}.hero-title{font-size:63px}.home-content{margin-top:-9px}.home-intro{margin-bottom:24px}.home-intro h2{font-size:27px}.home-shortcuts button{font-size:11px}.media-card.poster-card{width:143px}.ranked-card.poster-card{width:174px}.rank-number{font-size:100px;bottom:59px}.browse-toolbar{display:block}.category-bar{margin-bottom:9px}.sort-control{justify-content:flex-end;margin-bottom:19px}.card-save{opacity:1;transform:none}.collection-section{margin:38px 0}}
+@media(prefers-reduced-motion:reduce){.media-card:hover .card-art{transform:none}}
+
+/* Mobile nav occupies two rows; retain its height after V2.2 base header rules. */
+@media(max-width:700px){.site-header{height:auto;min-height:112px}.header-inner{min-height:112px}.main-nav{flex-basis:100%;order:3;height:44px}}

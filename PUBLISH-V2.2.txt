@@ -1,0 +1,18 @@
+NOVA V2.2 — Discovery update
+===================================
+This website update is an ORIGINAL interface inspired by the browsing patterns of NOVAHD (not a copy of its assets, code, catalog, or video sources).
+
+PUBLISH THE SMALL UPDATE (recommended):
+1. Back up your existing GitHub repository.
+2. Open https://github.com/DefinitelyGio/nova-streaming
+3. Select Add file > Upload files.
+4. From NOVA-V2.2-Discovery-UPDATE.zip, extract and upload index.html, app.js, styles.css, and README.md to the TOP LEVEL of your repo.
+5. Commit. Check Actions for a successful GitHub Pages deployment.
+6. Visit https://definitelygio.github.io/nova-streaming/ and hard refresh.
+
+DO NOT replace imports.js if you have published your own catalog additions.
+This small update does not change assets/, media/, imports.js, catalog.js, or studio.html.
+The Studio will remain at https://definitelygio.github.io/nova-streaming/studio.html if it is already installed.
+
+You can test locally by extracting the full ZIP and opening index.html, but sharing links requires a hosted deployment.
+Use Library Studio to add metadata and authorized video sources. Its changes are local until you export imports.js and publish it. GitHub Pages does not upload/host MP4s automatically, and Studio is not a private server admin panel.

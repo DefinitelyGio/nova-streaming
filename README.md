@@ -60,3 +60,16 @@ studio.html         local-draft catalog editor (publicly viewable, not an authen
 assets/             original V2 artwork (unchanged)
 media/              original sample MP4 (unchanged)
 ```
+
+
+## NOVA V2.2: poster-first browsing update
+
+This release draws on the organizational style of movie discovery sites, with an original NOVA design:
+- Editorial **Top 10 picks** (curated fictional examples; **not** real audience data)
+- Popular movie and series shelves, new additions, and genre collections
+- Newest / A-Z / oldest sort controls on Movies, Series, and My List
+- Existing search, saved list, original artwork, licensed-content playback, and Library Studio preserved
+
+To update the existing GitHub Pages repo, upload the **contents** of the ZIP at repository root (including `assets/`), replacing matching files; commit and check Actions. GitHub web uploads sometimes omit nested folders, so verify at least `assets/hero-signal.svg` is present in the repo. Keep `imports.js` if you have already published a nonempty catalog, because the included `imports.js` is the starter stub. Library Studio only edits your local browser until you export `imports.js` and deliberately upload it.
+
+No assets or streaming links were taken from novahd.cc.
